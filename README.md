@@ -31,13 +31,141 @@ Laurentian University, Fall 2026.
 | Stanley Stephen Wakdok | Agent Loop & UI Lead | `app/agent/` (Ollama tool-calling loop, prompts, trace logging), Gradio tabs, approval queue/SQLite | Agent architecture (20%, shared), Human-in-the-loop/ethics (10%) |
 | Oluwagbadura Ojo | Deployment, Docs & Presentation Lead | Docker Compose, monitoring tab/logging, screenshots, SDLC-stage docs, final report/slide deck | Deployment/demo (10%), Report/presentation (5%), Problem definition (10%) |
 
-## Project scope
+## Problem statement
 
-See [CLAUDE.md](CLAUDE.md) for the full project specification: the 10
-misconfiguration types, architecture, schemas, and hard rules (rules-engine
-verdicts, human approval gates, no real AWS access, synthetic data only).
-See [data/DATA_CARD.md](data/DATA_CARD.md) for the synthetic dataset used to
-develop and evaluate the agent.
+Cloud security teams drown in scanner output. A small or mid-size company's
+analyst can face hundreds of AWS findings a week with no time to triage all
+of them, map each to a control framework, or write a correct fix by hand.
+This project builds a local AI agent that does that triage: it reads
+findings, detects misconfigurations, explains the risk in plain language
+with the right compliance and threat-model context, and drafts a fix a
+human can review and approve. Nothing in this repo executes a fix or calls
+a real AWS API — it recommends only, and a human approves every sensitive
+change.
+
+## Architecture
+
+```
+Upload (JSON/YAML/CSV)
+      |
+      v
+   Gradio UI
+      |
+      v
+Parser / Normaliser  --->  Finding (validated, Pydantic)
+      |
+      v
+   Agent loop (Ollama tool-calling, Qwen2.5 7B)
+      |
+      +--> check_misconfig(finding)   -- deterministic rule engine, sets type + severity
+      +--> lookup_controls(type, resource) -- RAG over CIS/FSBP/MITRE (Chroma)
+      +--> get_fix_template(type)     -- vetted remediation library
+      |
+      v
+   AgentOutput (validated, Pydantic)
+      |
+      v
+   Approval gate (human-in-the-loop, required for High/Critical/IAM fixes)
+      |
+      v
+Export (fix script + audit log) + monitoring
+```
+
+**Hard rule:** only `check_misconfig` sets the misconfiguration type and
+severity. The LLM explains and drafts remediation text, but it never
+overrides a rule-engine verdict — this keeps every security judgment
+deterministic and auditable instead of resting on model output.
+
+## Misconfiguration types detected
+
+| ID | Misconfiguration | Resource | Severity | Approval required | AWS FSBP | CIS | MITRE ATT&CK |
+|---|---|---|---|---|---|---|---|
+| M01 | S3 bucket publicly readable | S3 | High | Yes | S3.1, S3.2, S3.8 | 2.1.x | T1530 |
+| M02 | S3 default encryption missing | S3 | Medium | No | S3 encryption | 2.1.x | T1530 |
+| M03 | SSH (22) or RDP (3389) open to the internet | EC2 Security Group | High | Yes | EC2.13, EC2.53 | 5.2, 5.3 | T1133, T1110 |
+| M04 | IAM policy with `Action: *` and `Resource: *` | IAM | Critical | Yes | IAM.1 | 1.16 | T1078.004, T1098 |
+| M05 | Root account without MFA | IAM | Critical | Yes | IAM.9 | 1.5 | T1078.004, T1110 |
+| M06 | Active access key older than 90 days | IAM | Medium | Yes (IAM) | IAM.3 | 1.14 | T1078.004, T1552 |
+| M07 | CloudTrail missing, stopped, or single-region | CloudTrail | High | Yes | CloudTrail.1 | 3.1 | T1562.008 |
+| M08 | RDS instance publicly accessible | RDS | High | Yes | RDS.2 | 2.3.x | T1190, T1110 |
+| M09 | RDS storage not encrypted | RDS | Medium | No | RDS.3 | 2.3.1 | T1537 |
+| M10 | EBS volume not encrypted | EBS | Medium | No | EC2.7 | 2.2.1 | T1537 |
+
+A finding that matches none of the above is labelled `COMPLIANT`; one the
+rule engine can't confidently assess (missing or malformed fields) is
+flagged `NEEDS_REVIEW` rather than guessed at.
+
+## Safety and human-in-the-loop design
+
+- **Recommend only.** Nothing in this repo executes a fix or calls a real AWS API — exported fixes are text scripts for a human to run.
+- **Human approval required** for every High, Critical, and IAM-related fix (M01, M03-M08). The agent has no permission to approve its own output.
+- **Synthetic data only.** No real AWS accounts, credentials, or scanning — see [data/DATA_CARD.md](data/DATA_CARD.md).
+- **Untrusted findings.** Finding tags/names are treated as untrusted data; the rule engine never reads them, so a misleading bucket name or prompt-injection text in a tag cannot change a verdict.
+
+## Tech stack
+
+| Layer | Choice |
+|---|---|
+| Language | Python 3.11 |
+| UI | Gradio (Blocks) |
+| LLM | Qwen2.5 7B via Ollama (primary); Llama 3.1 8B for comparison |
+| Agent | Plain Python loop with Ollama tool calling |
+| Embeddings | Sentence Transformers (BGE-small) |
+| Vector store | Chroma |
+| Validation | Pydantic v2 |
+| Storage | SQLite (approvals, audit log); JSON-lines logs |
+| Testing | pytest, GitHub Actions, Bandit |
+| Packaging | Docker Compose |
+
+## Repository structure
+
+```
+app/
+  main.py          # Gradio entry point
+  schemas/         # Pydantic models: Finding, AgentOutput (shared contract)
+  parser/          # JSON / YAML / CSV -> Finding
+  tools/           # check_misconfig (rules), lookup_controls, get_fix_template
+  agent/           # Ollama tool-calling loop, prompts
+  approval/        # approval queue, SQLite, audit log
+  ui/              # Gradio tabs
+  monitoring/      # JSON-lines logging, metrics
+data/
+  generator.py         # seeded synthetic finding generator
+  terraform_samples/   # misconfigured .tf files, scanned with Trivy
+  findings/             # generated findings (JSON/YAML/CSV)
+  DATA_CARD.md          # dataset documentation
+kb/
+  controls.md      # CIS / FSBP / MITRE control reference
+  ingest.py        # chunk, embed, load into Chroma
+eval/
+  metrics.py, ablation.py, test_cases/, rubric.csv, results/
+tests/             # pytest suite
+```
+
+## Evaluation targets
+
+Detection F1 >= 0.90, control mapping >= 90%, MITRE mapping >= 90%, tool
+selection >= 95%, hallucination <= 5%, explanation rubric average >= 4/5,
+100% of sensitive fixes routed to approval, 100% of adversarial cases
+handled correctly, < 30s per finding, and 8/8 demo cases passing. We also
+compare an ablation (rules only vs. LLM only vs. full system) and the two
+candidate models (Qwen2.5 vs. Llama 3.1).
+
+## Current status
+
+- [x] Pydantic schemas for `Finding` and `AgentOutput`
+- [x] Seeded synthetic dataset (151 findings, all 10 types + hard cases)
+- [x] `check_misconfig` rule engine, validated against the full dataset
+- [ ] Parser (JSON/YAML/CSV -> `Finding`)
+- [ ] Knowledge base + `lookup_controls` retrieval
+- [ ] `get_fix_template` remediation library
+- [ ] Agent loop (Ollama tool calling)
+- [ ] Gradio UI + approval queue + export
+- [ ] Evaluation scripts, ablation, adversarial tests
+- [ ] Docker Compose, monitoring, screenshots
+
+For the complete governing specification used to build this project
+(hard rules, schemas, exact build order), see [CLAUDE.md](CLAUDE.md).
 
 ## Getting started
 
