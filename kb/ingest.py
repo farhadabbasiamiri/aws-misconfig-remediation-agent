@@ -6,10 +6,16 @@ Run directly: python kb/ingest.py
 from __future__ import annotations
 
 import re
+import sys
 from pathlib import Path
 from typing import Any
 
-from app.tools.retrieval import COLLECTION_NAME, default_chroma_path, get_default_embedding_function
+# Allow `python kb/ingest.py` to find the app package without needing -m.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from app.tools.retrieval import COLLECTION_NAME, default_chroma_path, get_default_embedding_function  # noqa: E402
 
 CONTROLS_PATH = Path(__file__).resolve().parent / "controls.md"
 

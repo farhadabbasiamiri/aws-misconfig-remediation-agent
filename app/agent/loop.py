@@ -222,8 +222,15 @@ def _assemble_output(finding: Finding, state: dict[str, Any], parsed: dict[str, 
     retrieved: list[ControlMatch] = state.get("retrieved") or []
     fix: Optional[FixTemplate] = state.get("fix_template")
 
-    control_ids = sorted({cid for m in retrieved for cid in m.control_ids})
-    mitre_techniques = sorted({t for m in retrieved for t in m.mitre_techniques})
+    # lookup_controls does top-3 retrieval so the LLM has richer context, but
+    # the 2nd/3rd-closest matches can be a different, only tangentially
+    # related misconfig type (e.g. an S3 public-bucket finding's 3rd match
+    # being an RDS control, since "public access" controls cluster together
+    # in embedding space). The authoritative control_ids/mitre_techniques
+    # citation only uses the single best match, not a union of all three.
+    best_match = retrieved[0] if retrieved else None
+    control_ids = sorted(best_match.control_ids) if best_match else []
+    mitre_techniques = sorted(best_match.mitre_techniques) if best_match else []
 
     remediation_steps = parsed.get("remediation_steps")
     llm_supplied_steps = isinstance(remediation_steps, list) and all(isinstance(s, str) for s in remediation_steps)
