@@ -156,7 +156,7 @@ candidate models (Qwen2.5 vs. Llama 3.1).
 - [x] Pydantic schemas for `Finding` and `AgentOutput`
 - [x] Seeded synthetic dataset (151 findings, all 10 types + hard cases)
 - [x] `check_misconfig` rule engine, validated against the full dataset
-- [ ] Parser (JSON/YAML/CSV -> `Finding`)
+- [x] Parser (JSON/YAML/CSV -> `Finding`)
 - [ ] Knowledge base + `lookup_controls` retrieval
 - [ ] `get_fix_template` remediation library
 - [ ] Agent loop (Ollama tool calling)
