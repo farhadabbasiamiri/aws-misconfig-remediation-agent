@@ -157,7 +157,7 @@ candidate models (Qwen2.5 vs. Llama 3.1).
 - [x] Seeded synthetic dataset (151 findings, all 10 types + hard cases)
 - [x] `check_misconfig` rule engine, validated against the full dataset
 - [x] Parser (JSON/YAML/CSV -> `Finding`)
-- [ ] Knowledge base + `lookup_controls` retrieval
+- [x] Knowledge base + `lookup_controls` retrieval
 - [ ] `get_fix_template` remediation library
 - [ ] Agent loop (Ollama tool calling)
 - [ ] Gradio UI + approval queue + export
