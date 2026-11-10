@@ -159,7 +159,7 @@ candidate models (Qwen2.5 vs. Llama 3.1).
 - [x] Parser (JSON/YAML/CSV -> `Finding`)
 - [x] Knowledge base + `lookup_controls` retrieval
 - [x] `get_fix_template` remediation library
-- [ ] Agent loop (Ollama tool calling)
+- [x] Agent loop (Ollama tool calling)
 - [ ] Gradio UI + approval queue + export
 - [ ] Evaluation scripts, ablation, adversarial tests
 - [ ] Docker Compose, monitoring, screenshots
