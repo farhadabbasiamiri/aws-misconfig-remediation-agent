@@ -1,0 +1,35 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    restart: unless-stopped
+
+  app:
+    build: .
+    ports:
+      - "7860:7860"
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      MODEL_NAME: qwen2.5:7b
+      COMPARISON_MODEL: llama3.1:8b
+      LLM_TIMEOUT_SECONDS: "60"
+      CHROMA_PATH: /app/kb/chroma
+      APPROVAL_DB_PATH: /app/app/approval/approvals.db
+      LOG_PATH: /app/app/monitoring/logs.jsonl
+      MOCK_MODE: "false"
+    depends_on:
+      - ollama
+    volumes:
+      - chroma_data:/app/kb/chroma
+      - approval_data:/app/app/approval
+      - monitoring_data:/app/app/monitoring
+    restart: unless-stopped
+
+volumes:
+  ollama_models:
+  chroma_data:
+  approval_data:
+  monitoring_data:

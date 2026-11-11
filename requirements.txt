@@ -1,10 +1,18 @@
-# Versions will be pinned once the team confirms the stack runs on every laptop.
-gradio>=4.0
-ollama>=0.3
-chromadb>=0.5
-sentence-transformers>=3.0
-pydantic>=2.0
-pyyaml>=6.0
-pandas>=2.0
-pytest>=8.0
-bandit>=1.7
+# Pinned to the versions we've actually tested (local pytest suite + a
+# live Gradio run + a Docker build). gradio>=4.0 resolved to gradio 6.31.0
+# in a fresh install and broke app/main.py outright (launch() dropped the
+# show_api argument); even with gradio pinned, an unpinned starlette
+# resolved to 1.10.0 (released after gradio 4.44.1) and broke page
+# rendering. Unpinned ranges are not safe for this project.
+gradio==4.44.1
+starlette==0.49.3
+fastapi==0.128.8
+jinja2==3.1.6
+ollama==0.6.3
+chromadb==1.5.9
+sentence-transformers==5.1.2
+pydantic==2.13.5
+pyyaml==6.0.3
+pandas==2.3.3
+pytest==8.4.2
+bandit==1.8.6

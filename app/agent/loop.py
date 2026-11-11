@@ -19,6 +19,7 @@ from __future__ import annotations
 import concurrent.futures
 import json
 import os
+import time
 from dataclasses import asdict, dataclass, field
 from typing import Any, Callable, Optional
 
@@ -42,6 +43,7 @@ class ToolTrace:
     tool: str
     arguments: dict[str, Any]
     result: dict[str, Any]
+    duration_seconds: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -333,6 +335,7 @@ def run_agent(
         )
         for name, arguments in tool_calls:
             handler = dispatch.get(name)
+            tool_start = time.perf_counter()
             if handler is None:
                 result = {"error": f"unknown tool {name!r}"}
             else:
@@ -340,7 +343,12 @@ def run_agent(
                     result = handler(arguments)
                 except Exception as exc:  # a single tool failure must not crash the whole run
                     result = {"error": str(exc)}
-            trace.append(ToolTrace(iteration=iteration, tool=name, arguments=arguments, result=result))
+            tool_duration = time.perf_counter() - tool_start
+            trace.append(
+                ToolTrace(
+                    iteration=iteration, tool=name, arguments=arguments, result=result, duration_seconds=tool_duration
+                )
+            )
             messages.append({"role": "tool", "name": name, "content": json.dumps(result, default=str)})
 
     return AgentRunResult(

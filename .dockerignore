@@ -1,0 +1,13 @@
+.venv/
+venv/
+.git/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+kb/chroma/
+app/approval/*.db
+app/monitoring/*.jsonl
+eval/results/*.json
+.env
+.DS_Store
+.claude/

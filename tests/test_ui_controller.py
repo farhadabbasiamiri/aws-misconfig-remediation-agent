@@ -37,7 +37,7 @@ def test_analyze_file_populates_results_for_a_valid_finding(tmp_path, real_colle
     db_path = tmp_path / "approvals.db"
     upload_path = write_json(tmp_path, [VALID_RECORD])
 
-    outcome = controller.analyze_file(upload_path, force_mock=True, collection=real_collection, db_path=db_path)
+    outcome = controller.analyze_file(upload_path, force_mock=True, collection=real_collection, db_path=db_path, log_path=tmp_path / "logs.jsonl")
 
     assert outcome == {"error": None, "analyzed": 1, "needs_review": 0, "used_mock": True}
     rows = controller.results_table(db_path=db_path)
@@ -52,7 +52,7 @@ def test_analyze_file_records_malformed_entries_as_needs_review(tmp_path, real_c
     del broken["resource_id"]
     upload_path = write_json(tmp_path, [broken])
 
-    outcome = controller.analyze_file(upload_path, force_mock=True, collection=real_collection, db_path=db_path)
+    outcome = controller.analyze_file(upload_path, force_mock=True, collection=real_collection, db_path=db_path, log_path=tmp_path / "logs.jsonl")
 
     assert outcome["analyzed"] == 0
     assert outcome["needs_review"] == 1
@@ -77,7 +77,7 @@ def test_analyze_file_with_broken_syntax_returns_an_error_not_a_crash(tmp_path):
 def test_finding_detail_and_agent_trace_round_trip(tmp_path, real_collection):
     db_path = tmp_path / "approvals.db"
     upload_path = write_json(tmp_path, [VALID_RECORD])
-    controller.analyze_file(upload_path, force_mock=True, collection=real_collection, db_path=db_path)
+    controller.analyze_file(upload_path, force_mock=True, collection=real_collection, db_path=db_path, log_path=tmp_path / "logs.jsonl")
 
     detail = controller.finding_detail("SYN-0001", db_path=db_path)
     assert detail["misconfig_type"] == "M01"
@@ -95,7 +95,7 @@ def test_finding_detail_for_unknown_id_returns_none(tmp_path):
 def test_pending_queue_and_approval_flow(tmp_path, real_collection):
     db_path = tmp_path / "approvals.db"
     upload_path = write_json(tmp_path, [VALID_RECORD])
-    controller.analyze_file(upload_path, force_mock=True, collection=real_collection, db_path=db_path)
+    controller.analyze_file(upload_path, force_mock=True, collection=real_collection, db_path=db_path, log_path=tmp_path / "logs.jsonl")
 
     pending = controller.pending_queue(db_path=db_path)
     assert len(pending) == 1
@@ -111,7 +111,7 @@ def test_pending_queue_and_approval_flow(tmp_path, real_collection):
 def test_export_audit_log_csv_contains_the_analysis_and_approval(tmp_path, real_collection):
     db_path = tmp_path / "approvals.db"
     upload_path = write_json(tmp_path, [VALID_RECORD])
-    controller.analyze_file(upload_path, force_mock=True, collection=real_collection, db_path=db_path)
+    controller.analyze_file(upload_path, force_mock=True, collection=real_collection, db_path=db_path, log_path=tmp_path / "logs.jsonl")
     controller.approve("SYN-0001", actor="jaya", db_path=db_path)
 
     csv_path = controller.export_audit_log_csv(db_path=db_path, out_path=tmp_path / "audit.csv")
@@ -125,7 +125,7 @@ def test_export_audit_log_csv_contains_the_analysis_and_approval(tmp_path, real_
 def test_export_fixes_text_includes_fix_snippet_and_side_effects(tmp_path, real_collection):
     db_path = tmp_path / "approvals.db"
     upload_path = write_json(tmp_path, [VALID_RECORD])
-    controller.analyze_file(upload_path, force_mock=True, collection=real_collection, db_path=db_path)
+    controller.analyze_file(upload_path, force_mock=True, collection=real_collection, db_path=db_path, log_path=tmp_path / "logs.jsonl")
 
     out_path = controller.export_fixes_text(db_path=db_path, out_path=tmp_path / "fixes.txt")
     text = open(out_path).read()
@@ -136,12 +136,15 @@ def test_export_fixes_text_includes_fix_snippet_and_side_effects(tmp_path, real_
 
 def test_monitoring_summary_reports_totals(tmp_path, real_collection):
     db_path = tmp_path / "approvals.db"
+    log_path = tmp_path / "logs.jsonl"
     upload_path = write_json(tmp_path, [VALID_RECORD])
-    controller.analyze_file(upload_path, force_mock=True, collection=real_collection, db_path=db_path)
+    controller.analyze_file(upload_path, force_mock=True, collection=real_collection, db_path=db_path, log_path=log_path)
 
-    summary = controller.monitoring_summary(db_path=db_path)
+    summary = controller.monitoring_summary(db_path=db_path, log_path=log_path)
     assert summary["total_runs"] == 1
     assert summary["by_misconfig_type"]["M01"] == 1
+    assert summary["logged"]["total_runs"] == 1
+    assert "check_misconfig" in summary["logged"]["avg_latency_by_tool"]
 
 
 def test_ollama_is_available_returns_a_bool_without_crashing():

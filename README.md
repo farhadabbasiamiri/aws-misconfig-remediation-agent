@@ -186,10 +186,24 @@ vs. Llama 3.1 once both are pulled in a live Ollama.
 - [x] Agent loop (Ollama tool calling)
 - [x] Gradio UI + approval queue + export
 - [x] Evaluation scripts, ablation, adversarial tests
-- [ ] Docker Compose, monitoring, screenshots
+- [x] Docker Compose, monitoring, screenshots
 
 For the complete governing specification used to build this project
 (hard rules, schemas, exact build order), see [CLAUDE.md](CLAUDE.md).
+
+## Screenshots
+
+| Results | Finding Detail |
+|---|---|
+| ![Results tab](docs/screenshots/results.jpg) | ![Finding Detail tab](docs/screenshots/finding_detail.jpg) |
+
+| Agent Trace | Approval Queue |
+|---|---|
+| ![Agent Trace tab](docs/screenshots/agent_trace.jpg) | ![Approval Queue tab](docs/screenshots/approval_queue.jpg) |
+
+| Export | Monitoring |
+|---|---|
+| ![Export tab](docs/screenshots/export.jpg) | ![Monitoring tab](docs/screenshots/monitoring.jpg) |
 
 ## Getting started
 
@@ -201,5 +215,14 @@ python kb/ingest.py               # build the Chroma index
 pytest                            # run the test suite
 python eval/run_eval.py           # score the full system against the dataset
 python app/main.py                # start the Gradio app
-docker compose up                 # full stack via Docker Compose
+docker compose up                 # full stack (app + Ollama) via Docker Compose
+docker compose exec ollama ollama pull qwen2.5:7b  # first run only
 ```
+
+The app container builds the Chroma knowledge base itself on first start if
+it's missing. `requirements.txt` is fully pinned, not just range-constrained
+-- an unpinned `gradio>=4.0` resolved to a newer major version that broke
+the app outright, and even with gradio pinned an unpinned `starlette`
+resolved to a release newer than gradio 4.44.1 supports. Both were caught
+by actually building and running the Docker image, not just by reading the
+versions in `pip freeze`.

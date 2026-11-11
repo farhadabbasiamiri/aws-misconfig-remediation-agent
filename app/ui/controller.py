@@ -11,6 +11,7 @@ from __future__ import annotations
 import csv
 import os
 import tempfile
+import time
 from pathlib import Path
 from typing import Any, Optional
 
@@ -26,6 +27,7 @@ from app.approval import (
     reject as _reject,
     save_result,
 )
+from app.monitoring import compute_monitoring_stats, log_run, log_tool_call
 from app.parser import parse_file
 from app.schemas import AgentOutput, Confidence, MisconfigVerdict
 
@@ -50,11 +52,13 @@ def analyze_file(
     model: str = DEFAULT_MODEL,
     collection: Any = None,
     db_path: Optional[Path] = None,
+    log_path: Optional[Path] = None,
 ) -> dict[str, Any]:
     """Parses an uploaded file and runs the agent on every valid finding.
 
     Records both successfully-analyzed findings and parse failures in the
-    approval store, so nothing a user uploads is silently dropped.
+    approval store, so nothing a user uploads is silently dropped. Each
+    run and tool call is also logged (app/monitoring) for the Monitoring tab.
     """
     report = parse_file(file_path)
     if report.file_error:
@@ -67,8 +71,31 @@ def analyze_file(
         kwargs: dict[str, Any] = {"collection": collection, "model": model}
         if use_mock:
             kwargs["chat_fn"] = mock_chat_fn
+        run_start = time.perf_counter()
         result = run_agent(finding, **kwargs)
+        run_duration = time.perf_counter() - run_start
         save_result(finding.resource_type.value, finding.region, result, db_path=db_path)
+
+        for tool_trace in result.trace:
+            log_tool_call(
+                finding.finding_id,
+                tool_trace.tool,
+                tool_trace.duration_seconds,
+                error=tool_trace.result.get("error") if isinstance(tool_trace.result, dict) else None,
+                log_path=log_path,
+            )
+        # _fallback_output (app/agent/loop.py) always starts its explanation
+        # with this exact prefix, regardless of which handled error it was
+        # (timeout, invalid JSON, a failed call, max iterations, ...), so
+        # it's a reliable way to flag the run as an error after the fact.
+        is_error_fallback = result.output.explanation.startswith("Automated explanation unavailable:")
+        log_run(
+            finding.finding_id,
+            result.output.misconfig_type.value,
+            run_duration,
+            error=result.output.explanation if is_error_fallback else None,
+            log_path=log_path,
+        )
         analyzed += 1
 
     for i, unparsable in enumerate(report.needs_review):
@@ -190,5 +217,10 @@ def export_fixes_text(db_path: Optional[Path] = None, out_path: Optional[Path] =
     return str(out_path)
 
 
-def monitoring_summary(db_path: Optional[Path] = None) -> dict[str, Any]:
-    return get_monitoring_stats(db_path=db_path)
+def monitoring_summary(db_path: Optional[Path] = None, log_path: Optional[Path] = None) -> dict[str, Any]:
+    """Combines approval-DB stats (counts, rejection rate per type) with
+    the JSON-lines log's run/tool latency and error counts.
+    """
+    stats = get_monitoring_stats(db_path=db_path)
+    stats["logged"] = compute_monitoring_stats(log_path=log_path)
+    return stats
