@@ -151,6 +151,30 @@ handled correctly, < 30s per finding, and 8/8 demo cases passing. We also
 compare an ablation (rules only vs. LLM only vs. full system) and the two
 candidate models (Qwen2.5 vs. Llama 3.1).
 
+Run `python eval/run_eval.py` to score the full system against the dataset
+(mock demo mode by default, so it needs no live Ollama) and write a report
+to `eval/results/`. Latest run, against all 146 clean synthetic findings:
+
+| Target | Result | Threshold |
+|---|---|---|
+| Detection F1 | 100% | >= 90% |
+| Control mapping accuracy | 100% | >= 90% |
+| MITRE mapping accuracy | 100% | >= 90% |
+| Tool selection accuracy | 100% | >= 95% |
+| Verdict integrity (hallucination stand-in*) | 100% | >= 95% |
+| Approval routing compliance | 100% | 100% |
+| Adversarial case pass rate | 100% | 100% |
+| Under 30s per finding | 100% | 100% |
+
+\* True hallucination detection needs an LLM judge, which is out of scope;
+this instead verifies hard rule 1 (the LLM can never override the rule
+engine's verdict) holds for every run -- see `eval/metrics.py`.
+
+`python -c "from eval.ablation import ablation_study; ..."` (see
+`eval/ablation.py`) compares rules-only detection against the full
+pipeline; `eval/ablation.py` also has a `compare_models` hook for Qwen2.5
+vs. Llama 3.1 once both are pulled in a live Ollama.
+
 ## Current status
 
 - [x] Pydantic schemas for `Finding` and `AgentOutput`
@@ -161,7 +185,7 @@ candidate models (Qwen2.5 vs. Llama 3.1).
 - [x] `get_fix_template` remediation library
 - [x] Agent loop (Ollama tool calling)
 - [x] Gradio UI + approval queue + export
-- [ ] Evaluation scripts, ablation, adversarial tests
+- [x] Evaluation scripts, ablation, adversarial tests
 - [ ] Docker Compose, monitoring, screenshots
 
 For the complete governing specification used to build this project
@@ -175,6 +199,7 @@ ollama pull qwen2.5:7b
 python data/generator.py          # generate synthetic findings
 python kb/ingest.py               # build the Chroma index
 pytest                            # run the test suite
+python eval/run_eval.py           # score the full system against the dataset
 python app/main.py                # start the Gradio app
 docker compose up                 # full stack via Docker Compose
 ```

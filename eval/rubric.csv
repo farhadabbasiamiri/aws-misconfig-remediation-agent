@@ -1,0 +1,2 @@
+finding_id,misconfig_type,accuracy_1to5,clarity_1to5,actionability_1to5,security_context_1to5,total_out_of_20,reviewer,notes
+SYN-0001,M01,,,,,,,"Example row -- duplicate for each finding being manually scored. accuracy: does the explanation match the rule engine's evidence; clarity: is it understandable to a non-expert analyst; actionability: are the remediation_steps concrete enough to act on; security_context: does it correctly convey why this matters (impact, likely attacker use)."

@@ -1,0 +1,104 @@
+{
+  "computed": {
+    "detection_f1": 1.0,
+    "detection_accuracy": 1.0,
+    "control_mapping_accuracy": 1.0,
+    "mitre_mapping_accuracy": 1.0,
+    "tool_selection_accuracy": 1.0,
+    "verdict_integrity_rate": 1.0,
+    "approval_routing_compliance": 1.0,
+    "adversarial_pass_rate": 1.0,
+    "latency": {
+      "count": 146,
+      "avg_seconds": 0.039920523684931514,
+      "max_seconds": 4.956396750000001,
+      "under_30s_rate": 1.0
+    },
+    "latency_under_30s_rate": 1.0
+  },
+  "summary": [
+    {
+      "target": "detection_f1",
+      "value": 1.0,
+      "threshold": 0.9,
+      "passes": true
+    },
+    {
+      "target": "control_mapping_accuracy",
+      "value": 1.0,
+      "threshold": 0.9,
+      "passes": true
+    },
+    {
+      "target": "mitre_mapping_accuracy",
+      "value": 1.0,
+      "threshold": 0.9,
+      "passes": true
+    },
+    {
+      "target": "tool_selection_accuracy",
+      "value": 1.0,
+      "threshold": 0.95,
+      "passes": true
+    },
+    {
+      "target": "verdict_integrity_rate",
+      "value": 1.0,
+      "threshold": 0.95,
+      "passes": true
+    },
+    {
+      "target": "approval_routing_compliance",
+      "value": 1.0,
+      "threshold": 1.0,
+      "passes": true
+    },
+    {
+      "target": "adversarial_pass_rate",
+      "value": 1.0,
+      "threshold": 1.0,
+      "passes": true
+    },
+    {
+      "target": "latency_under_30s_rate",
+      "value": 1.0,
+      "threshold": 1.0,
+      "passes": true
+    }
+  ],
+  "confusion": {
+    "M01": {
+      "M01": 11
+    },
+    "M02": {
+      "M02": 10
+    },
+    "M03": {
+      "M03": 11
+    },
+    "M04": {
+      "M04": 10
+    },
+    "M05": {
+      "M05": 10
+    },
+    "M06": {
+      "M06": 10
+    },
+    "M07": {
+      "M07": 11
+    },
+    "M08": {
+      "M08": 10
+    },
+    "M09": {
+      "M09": 11
+    },
+    "M10": {
+      "M10": 11
+    },
+    "COMPLIANT": {
+      "COMPLIANT": 41
+    }
+  }
+}
